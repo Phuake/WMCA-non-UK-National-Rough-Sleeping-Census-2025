@@ -1,11 +1,9 @@
 # WMCA Non-UK National Rough Sleeping Census 2025
 
-This repository contains code and data analysis for the **WMCA Non-UK National Rough Sleeping Census 2025** project.
+This repository contains the data and code used for the 2025 WMCA Non-UK National Rough Sleeping Census study. It includes:
 
-## Contents
+1. **Survey Data**: Raw responses from the Non-UK National Rough Sleeping Census.
+2. **Data Analysis and Visualization Code**: Python scripts for cleaning, analyzing, and visualizing the survey data.
+3. **Map R Code**: R scripts for generating maps of partner organisation sites and West Midlands UTLA boundaries.
 
-- **WMCA non-UK National Rough Sleeping Census 2025_Map RCode**  
-  R scripts for spatial mapping of partner organisations and survey areas.
-
-- **WMCA non-UK National Rough Sleeping Census 2025_Data Analysis and Visualization Code**  
-  Python scripts for data cleaning, statistical analysis, and visualization.
+All resources are provided to facilitate replication of the study's findings and visualizations.
