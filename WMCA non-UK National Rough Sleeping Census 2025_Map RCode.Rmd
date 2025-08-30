@@ -1,0 +1,155 @@
+---
+title: "WMCA non-UK National Rough Sleeping Census 2025_Map RCode"
+author: 'Chunyi Lu'
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+
+library(tmap)
+library(sf)
+library(tmaptools)
+library(dplyr)
+
+```
+
+```{r}
+
+tmap_mode("plot")
+
+base_path <- "***"
+england_utla <- read_sf(paste0(base_path, "/england_utla_2022_bgc/england_utla_2022_bgc.shp"))
+
+west_midlands_names <- c(
+  "Birmingham", 
+  "Coventry", 
+  "Dudley", 
+  "Sandwell", 
+  "Solihull", 
+  "Walsall", 
+  "Wolverhampton"
+)
+
+possible_name_fields <- c("UTLA21NM", "NAME", "utla21nm", "name", "UTLA_NAME", "Local_Authority")
+west_midlands_utla <- NULL
+
+for(field in possible_name_fields) {
+  if(field %in% names(england_utla)) {
+    west_midlands_utla <- england_utla %>%
+      filter(get(field) %in% west_midlands_names)
+    
+    if(nrow(west_midlands_utla) > 0) {
+      break
+    } else {
+      west_midlands_utla <- england_utla %>%
+        filter(grepl("Birmingham|Coventry|Dudley|Sandwell|Solihull|Walsall|Wolverhampton", 
+                     get(field), ignore.case = TRUE))
+      
+      if(nrow(west_midlands_utla) > 0) {
+        break
+      }
+    }
+  }
+}
+
+if(is.null(west_midlands_utla) || nrow(west_midlands_utla) == 0) {
+  west_midlands_bbox <- st_bbox(c(xmin = -2.5, ymin = 52.2, xmax = -1.3, ymax = 52.8), 
+                                crs = st_crs(4326))
+  west_midlands_polygon <- st_as_sfc(west_midlands_bbox)
+  
+  if(st_crs(england_utla)$input != "EPSG:4326") {
+    west_midlands_polygon <- st_transform(west_midlands_polygon, st_crs(england_utla))
+  }
+  
+  west_midlands_utla <- england_utla[st_intersects(england_utla, west_midlands_polygon, sparse = FALSE), ]
+}
+
+locations <- data.frame(
+  name = c("Coventry Refugee and Migrant Centre",
+           "Hope Projects", 
+           "Tabor Living",
+           "Refugee and Migrant Centre, West Midlands",
+           "SIFA Fireside"),
+  postcode = c("CV1 5FX", "B12 9LX", "B5 7BE", "B1 3HS", "B9 4DY"),
+  organization_color = c("red", "blue", "green", "orange", "purple"),
+  stringsAsFactors = FALSE
+)
+
+coords_list <- lapply(1:nrow(locations), function(i) {
+  pc <- locations$postcode[i]
+  name <- locations$name[i]
+  color <- locations$organization_color[i]
+  
+  tryCatch({
+    result <- geocode_OSM(pc, as.sf = TRUE)
+    if(!is.null(result) && nrow(result) > 0) {
+      result$name <- name
+      result$postcode <- pc
+      result$organization_color <- color
+      return(result)
+    }
+    return(NULL)
+  }, error = function(e) {
+    return(NULL)
+  })
+})
+
+valid_coords <- coords_list[!sapply(coords_list, is.null)]
+if(length(valid_coords) > 0) {
+  coords_sf <- do.call(rbind, valid_coords)
+} else {
+  manual_coords <- data.frame(
+    name = locations$name,
+    postcode = locations$postcode,
+    organization_color = locations$organization_color,
+    lon = c(-1.5121, -1.9026, -1.8904, -1.8904, -1.8746),
+    lat = c(52.4081, 52.4647, 52.4862, 52.4862, 52.4751)
+  )
+  
+  coords_sf <- st_as_sf(manual_coords, 
+                        coords = c("lon", "lat"), 
+                        crs = 4326)
+}
+
+west_midlands_utla <- st_transform(west_midlands_utla, crs = 4326)
+coords_sf <- st_transform(coords_sf, crs = 4326)
+
+map <- tm_shape(west_midlands_utla) +
+  tm_polygons(col = "white", 
+              alpha = 0.4, 
+              border.col = "black",
+              border.lwd = 1,
+              popup.vars = TRUE,
+              id = names(west_midlands_utla)[1]) +
+  tm_text("name", size = 0.6, col = "black", auto.placement = FALSE, just = "center") +
+  tm_shape(coords_sf) +
+  tm_dots(size = 1.2, 
+          col = "name",  
+          alpha = 0.8,
+          popup.vars = c("Organization Name" = "name", "Postcode" = "postcode"),
+          id = "name",
+          palette = "Set1") +  
+  tm_layout(
+    main.title = "Partner Organisation Sites Involved in Survey Delivery",
+    main.title.size = 1.2,
+    frame = FALSE,
+    legend.position = c("right", "top"),
+    legend.bg.color = "white",
+    legend.bg.alpha = 0.8
+  )
+
+print(map)
+
+```
+
